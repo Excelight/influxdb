@@ -15,6 +15,7 @@ import (
 	"strconv"
 
 	"github.com/influxdata/influxdb/cmd/influxd/backup"
+	"github.com/influxdata/influxdb/cmd/influxd/backup_util"
 	"github.com/influxdata/influxdb/services/meta"
 	"github.com/influxdata/influxdb/services/snapshotter"
 )
@@ -116,7 +117,7 @@ func (cmd *Command) parseFlags(args []string) error {
 // cluster and replaces the root metadata.
 func (cmd *Command) unpackMeta() error {
 	// find the meta file
-	metaFiles, err := filepath.Glob(filepath.Join(cmd.backupFilesPath, backup.Metafile+".*"))
+	metaFiles, err := filepath.Glob(filepath.Join(cmd.backupFilesPath, backup_util.Metafile+".*"))
 	if err != nil {
 		return err
 	}
@@ -227,7 +228,7 @@ func (cmd *Command) unpackShard(shardID string) error {
 	}
 
 	// find the shard backup files
-	pat := filepath.Join(cmd.backupFilesPath, fmt.Sprintf(backup.BackupFilePattern, cmd.database, cmd.retention, id))
+	pat := filepath.Join(cmd.backupFilesPath, fmt.Sprintf(backup_util.BackupFilePattern, cmd.database, cmd.retention, id))
 	return cmd.unpackFiles(pat + ".*")
 }
 
