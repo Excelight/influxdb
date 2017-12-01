@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	//"github.com/davecgh/go-spew/spew"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/influxdata/influxdb/internal"
 	"github.com/influxdata/influxdb/logger"
 	"github.com/influxdata/influxdb/services/meta"
@@ -155,35 +155,35 @@ func TestSnapshotter_RequestShardBackup(t *testing.T) {
 	}
 }
 
-//func TestSnapshotter_RequestMetastoreBackup(t *testing.T) {
-//	s, l, err := NewTestService()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	defer l.Close()
-//
-//	s.MetaClient = &MetaClient{Data: data}
-//	if err := s.Open(); err != nil {
-//		t.Fatalf("unexpected open error: %s", err)
-//	}
-//	defer s.Close()
-//
-//	conn, err := net.Dial("tcp", l.Addr().String())
-//	if err != nil {
-//		t.Errorf("unexpected error: %s", err)
-//		return
-//	}
-//	defer conn.Close()
-//
-//	c := snapshotter.NewClient(l.Addr().String())
-//	if got, err := c.MetastoreBackup(); err != nil {
-//		t.Errorf("unable to obtain metastore backup: %s", err)
-//		return
-//	} else if want := &data; !reflect.DeepEqual(got, want) {
-//		t.Errorf("unexpected data backup:\n\ngot=%s\nwant=%s", spew.Sdump(got), spew.Sdump(want))
-//		return
-//	}
-//}
+func TestSnapshotter_RequestMetastoreBackup(t *testing.T) {
+	s, l, err := NewTestService()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+
+	s.MetaClient = &MetaClient{Data: data}
+	if err := s.Open(); err != nil {
+		t.Fatalf("unexpected open error: %s", err)
+	}
+	defer s.Close()
+
+	conn, err := net.Dial("tcp", l.Addr().String())
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+		return
+	}
+	defer conn.Close()
+
+	c := snapshotter.NewClient(l.Addr().String())
+	if got, err := c.MetastoreBackup(); err != nil {
+		t.Errorf("unable to obtain metastore backup: %s", err)
+		return
+	} else if want := &data; !reflect.DeepEqual(got, want) {
+		t.Errorf("unexpected data backup:\n\ngot=%s\nwant=%s", spew.Sdump(got), spew.Sdump(want))
+		return
+	}
+}
 
 func TestSnapshotter_RequestDatabaseInfo(t *testing.T) {
 	s, l, err := NewTestService()
