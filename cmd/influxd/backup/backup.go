@@ -42,7 +42,7 @@ type Command struct {
 	start    time.Time
 	end      time.Time
 
-	legacy             bool
+	enterprise         bool
 	manifest           backup_util.Manifest
 	enterpriseFileBase string
 }
@@ -93,7 +93,7 @@ func (cmd *Command) Run(args ...string) error {
 		}
 
 		cmd.StdoutLogger.Println("No database, retention policy or shard ID given. Full meta store backed up.")
-		if !cmd.legacy {
+		if cmd.enterprise {
 			cmd.StdoutLogger.Println("Backing up all databases in enterprise format")
 			if err := cmd.backupDatabase(); err != nil {
 				cmd.StderrLogger.Printf("backup failed: %v", err)
@@ -104,7 +104,7 @@ func (cmd *Command) Run(args ...string) error {
 
 	}
 
-	if !cmd.legacy {
+	if cmd.enterprise {
 		cmd.manifest.Platform = "OSS"
 		filename := cmd.enterpriseFileBase + ".manifest"
 		if err := cmd.manifest.Save(filepath.Join(cmd.path, filename)); err != nil {
@@ -136,7 +136,7 @@ func (cmd *Command) parseFlags(args []string) (err error) {
 	fs.StringVar(&sinceArg, "since", "", "")
 	fs.StringVar(&startArg, "start", "", "")
 	fs.StringVar(&endArg, "end", "", "")
-	fs.BoolVar(&cmd.legacy, "legacy", false, "")
+	fs.BoolVar(&cmd.enterprise, "enterprise", false, "")
 
 	fs.SetOutput(cmd.Stderr)
 	fs.Usage = cmd.printUsage
@@ -230,7 +230,7 @@ func (cmd *Command) backupShard(db, rp, sid string) error {
 		return err
 	}
 
-	if !cmd.legacy {
+	if cmd.enterprise {
 		f, err := os.Open(shardArchivePath)
 		defer f.Close()
 		defer os.Remove(shardArchivePath)
@@ -390,7 +390,7 @@ func (cmd *Command) backupMetastore(useDB string) error {
 		return err
 	}
 
-	if !cmd.legacy {
+	if cmd.enterprise {
 		metaBytes, err := backup_util.GetMetaBytes(metastoreArchivePath)
 		defer os.Remove(metastoreArchivePath)
 		if err != nil {
