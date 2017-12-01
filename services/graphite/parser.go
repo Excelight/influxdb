@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -159,6 +160,12 @@ func compileTemplates(templates interface{}, options Options) (map[string]Templa
 				}
 
 				t, err := NewTemplate(template, tags, options.Separator)
+				if err != nil {
+					return nil, err
+				}
+				tmpl = t
+			case "regexp":
+				t, err := NewRegexpTemplate(template)
 				if err != nil {
 					return nil, err
 				}
@@ -374,6 +381,62 @@ func (t *simpleTemplate) Apply(line string) (string, map[string]string, string, 
 	}
 
 	return strings.Join(measurement, t.separator), out_tags, field, nil
+}
+
+type regexpTemplate struct {
+	re *regexp.Regexp
+}
+
+func NewRegexpTemplate(pattern string) (Template, error) {
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	// The template must have a capture pattern for measurement and field.
+	var hasMeasurement bool
+	for _, name := range re.SubexpNames() {
+		switch name {
+		case "measurement":
+			hasMeasurement = true
+		}
+	}
+
+	if !hasMeasurement {
+		return nil, errors.New("measurement must be included as a named capture group")
+	}
+	return &regexpTemplate{re: re}, nil
+}
+
+func (t *regexpTemplate) Apply(line string) (string, map[string]string, string, error) {
+	var (
+		measurement, field string
+		tags               = make(map[string]string)
+	)
+
+	m := t.re.FindStringSubmatch(line)
+	if m == nil {
+		return "", nil, "", fmt.Errorf("unable to match '%s' to regular expression /%s/", line, t.re.String())
+	}
+
+	for i, name := range t.re.SubexpNames() {
+		if name == "" {
+			continue
+		}
+
+		switch name {
+		case "measurement":
+			measurement = m[i]
+		case "field":
+			field = m[i]
+		default:
+			tags[name] = m[i]
+		}
+	}
+	if field == "" {
+		field = "value"
+	}
+	return measurement, tags, field, nil
 }
 
 // matcher determines which template should be applied to a given metric
