@@ -48,8 +48,13 @@ tags=["region=us-east"]
 		t.Fatalf("unexpected graphite consistency setting: %s", c.ConsistencyLevel)
 	}
 
-	if len(c.Templates) != 1 && c.Templates[0] != "servers.* .host.measurement*" {
+	if templates, ok := c.Templates.([]interface{}); !ok || len(templates) != 1 {
 		t.Fatalf("unexpected graphite templates setting: %v", c.Templates)
+	} else {
+		template, ok := templates[0].(string)
+		if !ok || template != "servers.* .host.measurement*" {
+			t.Fatalf("unexpected graphite templates setting: %v", c.Templates)
+		}
 	}
 	if len(c.Tags) != 1 && c.Tags[0] != "regsion=us-east" {
 		t.Fatalf("unexpected graphite templates setting: %v", c.Tags)

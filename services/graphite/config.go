@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -61,7 +62,7 @@ type Config struct {
 	BatchPending     int           `toml:"batch-pending"`
 	BatchTimeout     toml.Duration `toml:"batch-timeout"`
 	ConsistencyLevel string        `toml:"consistency-level"`
-	Templates        []string      `toml:"templates"`
+	Templates        interface{}   `toml:"templates"`
 	Tags             []string      `toml:"tags"`
 	Separator        string        `toml:"separator"`
 	UDPReadBuffer    int           `toml:"udp-read-buffer"`
@@ -139,10 +140,35 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) validateTemplates() error {
+	if c.Templates == nil {
+		return nil
+	}
+
+	// If the templates section is a []interface{} type, all of the templates are in the simple format.
+	// Otherwise, if the templates section is []map[string]interface{} we have the advanced specification format.
+	switch templates := c.Templates.(type) {
+	case []interface{}:
+		// All of the values in these templates must be strings.
+		clone := make([]string, len(templates))
+		for i, t := range templates {
+			s, ok := t.(string)
+			if !ok {
+				return errors.New("graphite template must be a string")
+			}
+			clone[i] = s
+		}
+		return c.validateSimpleTemplates(clone)
+	case []map[string]interface{}:
+		return c.validateAdvancedTemplates(templates)
+	}
+	return fmt.Errorf("invalid type for templates section: %T", c.Templates)
+}
+
+func (c *Config) validateSimpleTemplates(templates []string) error {
 	// map to keep track of filters we see
 	filters := map[string]struct{}{}
 
-	for i, t := range c.Templates {
+	for i, t := range templates {
 		parts := strings.Fields(t)
 		// Ensure template string is non-empty
 		if len(parts) == 0 {
@@ -199,6 +225,75 @@ func (c *Config) validateTemplates() error {
 				if err := c.validateTag(tagStr); err != nil {
 					return err
 				}
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Config) validateAdvancedTemplates(templates []map[string]interface{}) error {
+	// map to keep track of filters we see
+	filters := map[string]struct{}{}
+
+	for i, t := range templates {
+		// Ensure all of the keys are valid.
+		for k := range t {
+			switch k {
+			case "format", "template", "filter":
+			default:
+				return fmt.Errorf("invalid key '%s' in template at position: %d", k, i)
+			}
+		}
+
+		// Retrieve the format and validate it.
+		format := "simple"
+		if v, ok := t["format"]; ok {
+			if s, ok := v.(string); !ok {
+				return fmt.Errorf("format must be a string at position: %d", i)
+			} else if s != "simple" {
+				return fmt.Errorf("unknown template format '%s' at position: %d", format, i)
+			} else {
+				format = s
+			}
+		}
+
+		// Ensure that a template string is present.
+		template, ok := t["template"]
+		if !ok {
+			return fmt.Errorf("missing template at position: %d", i)
+		}
+
+		if s, ok := template.(string); !ok {
+			return fmt.Errorf("template must be a string at position: %d", i)
+		} else {
+			switch format {
+			case "simple":
+				if err := c.validateTemplate(s); err != nil {
+					return err
+				}
+			}
+		}
+
+		// Retrieve and validate the filter if it exists.
+		filter := ""
+		if v, ok := t["filter"]; ok {
+			if s, ok := v.(string); !ok {
+				return fmt.Errorf("filter must be a string at position: %d", i)
+			} else {
+				filter = s
+			}
+		}
+
+		// Prevent duplicate filters in the config.
+		if _, ok := filters[filter]; ok {
+			return fmt.Errorf("duplicate filter '%s' found at position: %d", filter, i)
+		}
+		filters[filter] = struct{}{}
+
+		if filter != "" {
+			// Validate filter expression is valid
+			if err := c.validateFilter(filter); err != nil {
+				return err
 			}
 		}
 	}
