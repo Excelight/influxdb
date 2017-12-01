@@ -69,26 +69,26 @@ func (cmd *Command) Run(args ...string) error {
 
 	if cmd.shardID != "" {
 		// always backup the metastore
-		if err := cmd.backupMetastore(cmd.database); err != nil {
+		if err := cmd.backupMetastore(); err != nil {
 			return err
 		}
 		err = cmd.backupShard(cmd.database, cmd.retentionPolicy, cmd.shardID)
 
 	} else if cmd.retentionPolicy != "" {
 		// always backup the metastore
-		if err := cmd.backupMetastore(cmd.database); err != nil {
+		if err := cmd.backupMetastore(); err != nil {
 			return err
 		}
 		err = cmd.backupRetentionPolicy()
 	} else if cmd.database != "" {
 		// always backup the metastore
-		if err := cmd.backupMetastore(cmd.database); err != nil {
+		if err := cmd.backupMetastore(); err != nil {
 			return err
 		}
 		err = cmd.backupDatabase()
 	} else {
 		// always backup the metastore
-		if err := cmd.backupMetastore(""); err != nil {
+		if err := cmd.backupMetastore(); err != nil {
 			return err
 		}
 
@@ -347,7 +347,7 @@ func (cmd *Command) backupResponsePaths(response *snapshotter.Response) error {
 
 // backupMetastore will backup the whole metastore on the host to the backup path
 // if useDB is non-empty, it will backup metadata only for the named database.
-func (cmd *Command) backupMetastore(useDB string) error {
+func (cmd *Command) backupMetastore() error {
 	metastoreArchivePath, err := cmd.nextPath(filepath.Join(cmd.path, backup_util.Metafile))
 	if err != nil {
 		return err
@@ -356,8 +356,7 @@ func (cmd *Command) backupMetastore(useDB string) error {
 	cmd.StdoutLogger.Printf("backing up metastore to %s", metastoreArchivePath)
 
 	req := &snapshotter.Request{
-		Type:           snapshotter.RequestMetastoreBackup,
-		BackupDatabase: useDB,
+		Type: snapshotter.RequestMetastoreBackup,
 	}
 
 	err = cmd.downloadAndVerify(req, metastoreArchivePath, func(file string) error {

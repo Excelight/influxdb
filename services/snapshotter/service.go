@@ -134,7 +134,7 @@ func (s *Service) handleConn(conn net.Conn) error {
 			return err
 		}
 	case RequestMetastoreBackup:
-		if err := s.writeMetaStore(conn, r.BackupDatabase); err != nil {
+		if err := s.writeMetaStore(conn); err != nil {
 			return err
 		}
 	case RequestDatabaseInfo:
@@ -148,22 +148,9 @@ func (s *Service) handleConn(conn net.Conn) error {
 	return nil
 }
 
-func (s *Service) writeMetaStore(conn net.Conn, dbName string) error {
+func (s *Service) writeMetaStore(conn net.Conn) error {
 	// Retrieve and serialize the current meta data.
-	// if the dbName is non-empty, then we drop all the DB's from the metadata
-	// that aren't being exported.
-
-	x := s.MetaClient.(*meta.Client)
-	data := x.Data()
-
-	if dbName != "" {
-		keepDB := data.Database(dbName)
-		if keepDB == nil {
-			return fmt.Errorf("database %s not found", dbName)
-		}
-		data.Databases = []meta.DatabaseInfo{*keepDB}
-	}
-	metaBlob, err := data.MarshalBinary()
+	metaBlob, err := s.MetaClient.MarshalBinary()
 
 	if err != nil {
 		return fmt.Errorf("marshal meta: %s", err)
